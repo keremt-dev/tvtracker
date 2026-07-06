@@ -60,6 +60,18 @@ export const getUserShows = async (userId) => {
   return data
 }
 
+export const getUserShow = async (userId, tmdbShowId) => {
+  const { data, error } = await supabase
+    .from('user_shows')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('tmdb_show_id', tmdbShowId)
+    .maybeSingle()
+
+  if (error) throw error
+  return data
+}
+
 export const deleteUserShow = async (userId, tmdbShowId) => {
   const { error } = await supabase
     .from('user_shows')
@@ -86,6 +98,34 @@ export const addWatchedEpisode = async (userId, tmdbShowId, seasonNumber, episod
       episode_number: episodeNumber,
       watched_at: new Date().toISOString(),
     }, {
+      onConflict: 'user_id,tmdb_show_id,season_number,episode_number'
+    })
+
+  if (error) throw error
+  return data
+}
+
+// Toplu işaretleme: sezonun tamamı tek istekte yazılır (bölüm başına istek yerine)
+export const addWatchedEpisodes = async (userId, tmdbShowId, episodes) => {
+  if (!episodes || episodes.length === 0) return []
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    throw new Error('No active session. Please log in again.')
+  }
+
+  const watchedAt = new Date().toISOString()
+  const rows = episodes.map(({ seasonNumber, episodeNumber }) => ({
+    user_id: userId,
+    tmdb_show_id: tmdbShowId,
+    season_number: seasonNumber,
+    episode_number: episodeNumber,
+    watched_at: watchedAt,
+  }))
+
+  const { data, error } = await supabase
+    .from('watched_episodes')
+    .upsert(rows, {
       onConflict: 'user_id,tmdb_show_id,season_number,episode_number'
     })
 

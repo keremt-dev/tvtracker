@@ -24,81 +24,90 @@ export default function Calendar() {
 
             setLoading(true)
             try {
-                const [todayData, onAirData] = await Promise.all([
+                const [todayData, onAirData, fetchedUserShows, watchedEpisodes] = await Promise.all([
                     getAiringToday(),
-                    getOnTheAir()
+                    getOnTheAir(),
+                    getUserShows(user.id),
+                    getWatchedEpisodes(user.id)
                 ])
                 setAiringToday(todayData.results || [])
                 setOnTheAir(onAirData.results || [])
-
-                const fetchedUserShows = await getUserShows(user.id)
                 setUserShows(fetchedUserShows)
-                const watchedEpisodes = await getWatchedEpisodes(user.id)
 
                 const watchedMap = new Set(
                     watchedEpisodes.map(e => `${e.tmdb_show_id}-${e.season_number}-${e.episode_number}`)
                 )
 
-                const showsMap = {}
                 const today = new Date().toISOString().split('T')[0]
 
-                for (const userShow of fetchedUserShows) {
+                // Tüm diziler (ve her dizinin tüm sezonları) paralel çekilir;
+                // önceki sıralı yapı dizi×sezon kadar ardışık istek bekletiyordu
+                const showResults = await Promise.all(fetchedUserShows.map(async (userShow) => {
                     try {
                         const showDetails = await getShowDetails(userShow.tmdb_show_id)
-                        if (!showDetails) continue
+                        if (!showDetails) return null
+
+                        const seasonNumbers = Array.from(
+                            { length: showDetails.number_of_seasons || 1 },
+                            (_, i) => i + 1
+                        )
+                        const seasons = await Promise.all(seasonNumbers.map(season =>
+                            getSeasonDetails(userShow.tmdb_show_id, season).catch(() => null)
+                        ))
 
                         const showEpisodes = []
+                        seasons.forEach((seasonData, idx) => {
+                            if (!seasonData?.episodes) return
+                            const season = seasonNumbers[idx]
 
-                        for (let season = 1; season <= (showDetails.number_of_seasons || 1); season++) {
-                            try {
-                                const seasonData = await getSeasonDetails(userShow.tmdb_show_id, season)
-                                if (!seasonData?.episodes) continue
+                            for (const episode of seasonData.episodes) {
+                                const key = `${userShow.tmdb_show_id}-${season}-${episode.episode_number}`
 
-                                for (const episode of seasonData.episodes) {
-                                    const key = `${userShow.tmdb_show_id}-${season}-${episode.episode_number}`
+                                if (watchedMap.has(key)) continue
+                                if (!episode.air_date) continue
+                                if (episode.air_date > today) continue
+                                if (episode.episode_number === 0) continue
 
-                                    if (watchedMap.has(key)) continue
-                                    if (!episode.air_date) continue
-                                    if (episode.air_date > today) continue
-                                    if (episode.episode_number === 0) continue
-
-                                    showEpisodes.push({
-                                        id: key,
-                                        showId: userShow.tmdb_show_id,
-                                        showName: showDetails.name,
-                                        showPoster: showDetails.poster_path,
-                                        seasonNumber: season,
-                                        episodeNumber: episode.episode_number,
-                                        episodeName: episode.name,
-                                        airDate: episode.air_date,
-                                        stillPath: episode.still_path,
-                                        runtime: episode.runtime,
-                                        voteAverage: episode.vote_average,
-                                        overview: episode.overview
-                                    })
-                                }
-                            } catch (err) {
-                                // Season might not exist
+                                showEpisodes.push({
+                                    id: key,
+                                    showId: userShow.tmdb_show_id,
+                                    showName: showDetails.name,
+                                    showPoster: showDetails.poster_path,
+                                    seasonNumber: season,
+                                    episodeNumber: episode.episode_number,
+                                    episodeName: episode.name,
+                                    airDate: episode.air_date,
+                                    stillPath: episode.still_path,
+                                    runtime: episode.runtime,
+                                    voteAverage: episode.vote_average,
+                                    overview: episode.overview
+                                })
                             }
-                        }
+                        })
 
-                        if (showEpisodes.length > 0) {
-                            showEpisodes.sort((a, b) => {
-                                if (a.seasonNumber !== b.seasonNumber) return a.seasonNumber - b.seasonNumber
-                                return a.episodeNumber - b.episodeNumber
-                            })
+                        if (showEpisodes.length === 0) return null
 
-                            showsMap[showDetails.name] = {
-                                showId: userShow.tmdb_show_id,
-                                showName: showDetails.name,
-                                showPoster: showDetails.poster_path,
-                                episodes: showEpisodes
-                            }
+                        showEpisodes.sort((a, b) => {
+                            if (a.seasonNumber !== b.seasonNumber) return a.seasonNumber - b.seasonNumber
+                            return a.episodeNumber - b.episodeNumber
+                        })
+
+                        return {
+                            showId: userShow.tmdb_show_id,
+                            showName: showDetails.name,
+                            showPoster: showDetails.poster_path,
+                            episodes: showEpisodes
                         }
                     } catch (err) {
                         console.error('Error fetching show details:', err)
+                        return null
                     }
-                }
+                }))
+
+                const showsMap = {}
+                showResults.filter(Boolean).forEach(showData => {
+                    showsMap[showData.showName] = showData
+                })
 
                 setGroupedEpisodes(showsMap)
                 const expanded = {}

@@ -37,16 +37,20 @@ export default function MyShows() {
         const shows = await getUserShows(user.id)
         setUserShows(shows)
 
-        // Fetch details for each show
+        // Fetch details for all shows in parallel; a single failure shouldn't block the rest
+        const results = await Promise.all(
+          shows.map((userShow) =>
+            getShowDetails(userShow.tmdb_show_id).catch((error) => {
+              console.error(`Error fetching show ${userShow.tmdb_show_id}:`, error)
+              return null
+            })
+          )
+        )
+
         const details = {}
-        for (const userShow of shows) {
-          try {
-            const detailsData = await getShowDetails(userShow.tmdb_show_id)
-            details[userShow.tmdb_show_id] = detailsData
-          } catch (error) {
-            console.error(`Error fetching show ${userShow.tmdb_show_id}:`, error)
-          }
-        }
+        shows.forEach((userShow, i) => {
+          if (results[i]) details[userShow.tmdb_show_id] = results[i]
+        })
         setShowsData(details)
       } catch (error) {
         console.error('Error fetching user shows:', error)

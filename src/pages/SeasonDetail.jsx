@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useShowStore } from '../store/showStore'
 import { useShowDetails, useSeasonDetails } from '../hooks/useQueries'
-import { addWatchedEpisode, getWatchedEpisodes, removeWatchedEpisode, updateUserShow, getUserShows } from '../services/supabase'
+import { addWatchedEpisode, addWatchedEpisodes, getWatchedEpisodes, removeWatchedEpisode, updateUserShow, getUserShows } from '../services/supabase'
 import { getImageUrl, WATCH_STATUS } from '../utils/constants'
 import { useToast } from '../components/common/Toast'
 import { generateWatchUrlWithOverrides, getShowWatchSettings } from '../utils/watchUrl'
@@ -84,11 +84,19 @@ export default function SeasonDetail() {
 
     setMarkingAll(true)
     try {
-      for (const episode of season.episodes || []) {
-        if (!isEpisodeWatched(parseInt(id), parseInt(num), episode.episode_number)) {
-          await addWatchedEpisode(user.id, parseInt(id), parseInt(num), episode.episode_number)
-          storeAddWatched(parseInt(id), parseInt(num), episode.episode_number)
-        }
+      const showIdNum = parseInt(id)
+      const seasonNum = parseInt(num)
+      const unwatched = (season.episodes || []).filter(
+        (ep) => !isEpisodeWatched(showIdNum, seasonNum, ep.episode_number)
+      )
+
+      if (unwatched.length > 0) {
+        await addWatchedEpisodes(
+          user.id,
+          showIdNum,
+          unwatched.map((ep) => ({ seasonNumber: seasonNum, episodeNumber: ep.episode_number }))
+        )
+        unwatched.forEach((ep) => storeAddWatched(showIdNum, seasonNum, ep.episode_number))
       }
 
       // After marking all, check status for the whole show

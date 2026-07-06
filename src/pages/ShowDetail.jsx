@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useShowStore } from '../store/showStore'
 import { useShowDetails, useSimilarShows } from '../hooks/useQueries'
-import { addUserShow, getUserShows, updateUserShow, getWatchedEpisodes, updateShowWatchLinkSettings, clearShowWatchLinkSettings } from '../services/supabase'
+import { addUserShow, getUserShow, updateUserShow, getWatchedEpisodes, updateShowWatchLinkSettings, clearShowWatchLinkSettings } from '../services/supabase'
 import { getImageUrl, getBackdropUrl, WATCH_STATUS, STATUS_LABELS } from '../utils/constants'
 import { ShowCardSkeleton } from '../components/common/Skeleton'
 import { useToast } from '../components/common/Toast'
@@ -43,11 +43,12 @@ export default function ShowDetail() {
       if (!user || !id) return
 
       try {
-        const shows = await getUserShows(user.id)
-        const found = shows.find((s) => s.tmdb_show_id === parseInt(id))
-        setUserShow(found || null)
+        const [found, watched] = await Promise.all([
+          getUserShow(user.id, parseInt(id)),
+          getWatchedEpisodes(user.id, parseInt(id)),
+        ])
 
-        const watched = await getWatchedEpisodes(user.id, parseInt(id))
+        setUserShow(found || null)
         useShowStore.getState().setWatchedEpisodes(parseInt(id), watched)
 
         if (found) {

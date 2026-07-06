@@ -40,24 +40,26 @@ export default function Dashboard() {
         setUserShows(shows)
         useShowStore.getState().setAllWatchedEpisodes(episodes)
 
-        // Fetch details for watching shows
+        // Fetch watching-show details, airing today and trending — all in parallel
         const watching = shows.filter((s) => s.status === 'watching')
-        const details = {}
-        for (const userShow of watching) {
-          try {
-            const detailsData = await getShowDetails(userShow.tmdb_show_id)
-            details[userShow.tmdb_show_id] = detailsData
-          } catch (error) {
-            console.error(`Error fetching show ${userShow.tmdb_show_id}:`, error)
-          }
-        }
-        setWatchingShowsData(details)
-
-        // Fetch airing today and trending
-        const [airingData, trendingData] = await Promise.all([
+        const [detailResults, airingData, trendingData] = await Promise.all([
+          Promise.all(
+            watching.map((userShow) =>
+              getShowDetails(userShow.tmdb_show_id).catch((error) => {
+                console.error(`Error fetching show ${userShow.tmdb_show_id}:`, error)
+                return null
+              })
+            )
+          ),
           getAiringToday(),
           getTrendingShows(),
         ])
+
+        const details = {}
+        watching.forEach((userShow, i) => {
+          if (detailResults[i]) details[userShow.tmdb_show_id] = detailResults[i]
+        })
+        setWatchingShowsData(details)
 
         setAiringToday(airingData.results?.slice(0, 6) || [])
         setTrending(trendingData.results?.slice(0, 6) || [])
