@@ -3,6 +3,13 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Supabase yapılandırması eksik: VITE_SUPABASE_URL ve VITE_SUPABASE_ANON_KEY tanımlı değil. ' +
+      'Yerelde .env dosyasını, canlıda Vercel > Settings > Environment Variables ayarlarını kontrol edin.'
+  )
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
@@ -19,7 +26,7 @@ export const signUp = async (email, password, username) => {
       data: {
         username,
       },
-      emailRedirectTo: 'https://tvtracker-xi.vercel.app/login',
+      emailRedirectTo: `${window.location.origin}/login`,
     },
   })
 
