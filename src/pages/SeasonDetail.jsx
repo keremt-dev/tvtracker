@@ -65,16 +65,12 @@ export default function SeasonDetail() {
         const showIdInt = parseInt(id)
         const currentShow = userShows.find(s => s.tmdb_show_id === showIdInt)
 
-        console.log(`[DEBUG] Auto-update check - Show ID: ${showIdInt}, Status: ${currentShow?.status}`)
-
         if (currentShow && currentShow.status === WATCH_STATUS.PLAN_TO_WATCH) {
           try {
-            console.log(`[DEBUG] Updating show ${showIdInt} to "watching"...`)
             await updateUserShow(user.id, showIdInt, { status: WATCH_STATUS.WATCHING })
             updateShow(showIdInt, { status: WATCH_STATUS.WATCHING })
-            console.log(`[DEBUG] Auto-update successful`)
           } catch (err) {
-            console.error('[DEBUG] Error auto-updating status:', err)
+            console.error('Error auto-updating status:', err)
           }
         }
       }
@@ -99,16 +95,12 @@ export default function SeasonDetail() {
       const showIdInt = parseInt(id)
       const currentShow = userShows.find(s => s.tmdb_show_id === showIdInt)
 
-      console.log(`[DEBUG] Mark All Auto-update check - Show ID: ${showIdInt}, Status: ${currentShow?.status}`)
-
       if (currentShow && currentShow.status === WATCH_STATUS.PLAN_TO_WATCH) {
         try {
-          console.log(`[DEBUG] Mark All: Updating show ${showIdInt} to "watching"...`)
           await updateUserShow(user.id, showIdInt, { status: WATCH_STATUS.WATCHING })
           updateShow(showIdInt, { status: WATCH_STATUS.WATCHING })
-          console.log(`[DEBUG] Mark All auto-update successful`)
         } catch (err) {
-          console.error('[DEBUG] Mark All error auto-updating status:', err)
+          console.error('Error auto-updating status:', err)
         }
       }
     } catch (error) {

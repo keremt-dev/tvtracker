@@ -85,8 +85,6 @@ export default function MyShows() {
       setRemovingId(tmdbShowId)
       setConfirmDeleteId(null)
 
-      console.log(`[DEBUG] Attempting to remove show: ${tmdbShowId} for user: ${user.id}`)
-
       // First delete from database
       await deleteUserShow(user.id, tmdbShowId)
 
@@ -100,10 +98,9 @@ export default function MyShows() {
         return newData
       })
 
-      console.log(`[DEBUG] Show ${tmdbShowId} removed successfully`)
       toast.success('Dizi listenden başarıyla kaldırıldı')
     } catch (error) {
-      console.error('[DEBUG] Error removing show:', error)
+      console.error('Error removing show:', error)
       toast.error(`Dizi kaldırılırken hata: ${error.message || error}`)
 
       // Refresh list on error to ensure sync

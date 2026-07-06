@@ -41,20 +41,24 @@ export const useShowStore = create((set, get) => ({
   }),
 
   addWatchedEpisode: (showId, seasonNumber, episodeNumber) => set((state) => {
-    const newMap = new Map(state.watchedEpisodes)
-    const showEpisodes = newMap.get(showId) || []
-    const key = `${seasonNumber}-${episodeNumber}`
+    const showEpisodes = state.watchedEpisodes.get(showId) || []
 
-    if (!showEpisodes.some((ep) =>
+    // Zaten işaretliyse state'i değiştirme
+    if (showEpisodes.some((ep) =>
       ep.season_number === seasonNumber && ep.episode_number === episodeNumber
     )) {
-      showEpisodes.push({
+      return state
+    }
+
+    const newMap = new Map(state.watchedEpisodes)
+    newMap.set(showId, [
+      ...showEpisodes,
+      {
         season_number: seasonNumber,
         episode_number: episodeNumber,
         watched_at: new Date().toISOString(),
-      })
-      newMap.set(showId, showEpisodes)
-    }
+      },
+    ])
 
     return { watchedEpisodes: newMap }
   }),

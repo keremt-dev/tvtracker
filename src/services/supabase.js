@@ -17,57 +17,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 })
 
-// Auth functions
-export const signUp = async (email, password, username) => {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        username,
-      },
-      emailRedirectTo: `${window.location.origin}/login`,
-    },
-  })
-
-  if (error) throw error
-
-  // Create user profile
-  if (data.user) {
-    const { error: profileError } = await supabase
-      .from('users')
-      .insert({
-        id: data.user.id,
-        email: data.user.email,
-        username: username,
-      })
-
-    if (profileError) throw profileError
-  }
-
-  return data
-}
-
-export const signIn = async (email, password) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
-
-  if (error) throw error
-  return data
-}
-
-export const signOut = async () => {
-  const { error } = await supabase.auth.signOut()
-  if (error) throw error
-}
-
-export const getCurrentUser = async () => {
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error) throw error
-  return user
-}
+// Auth işlemleri src/store/authStore.js üzerinden yürür.
 
 // Database functions
 export const addUserShow = async (userId, tmdbShowId, status = 'plan_to_watch') => {
@@ -169,24 +119,6 @@ export const getWatchedEpisodes = async (userId, tmdbShowId = null) => {
 
   if (error) throw error
   return data
-}
-
-export const getUserStats = async (userId) => {
-  const { data, error } = await supabase
-    .from('user_shows')
-    .select('status')
-
-  if (error) throw error
-
-  const stats = {
-    total: data.length,
-    watching: data.filter(s => s.status === 'watching').length,
-    completed: data.filter(s => s.status === 'completed').length,
-    dropped: data.filter(s => s.status === 'dropped').length,
-    planToWatch: data.filter(s => s.status === 'plan_to_watch').length,
-  }
-
-  return stats
 }
 
 export const updateProfile = async (userId, updates) => {
