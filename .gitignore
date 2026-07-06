@@ -28,3 +28,8 @@ dist-ssr
 .env.local
 .env.*.local
 .env.production
+
+# Local DB backups / restore scripts (contain sensitive data - never commit)
+*.backup.gz
+*.storage.zip
+restore-data.sql
