@@ -1,6 +1,13 @@
 import { create } from 'zustand'
-import { supabase } from '../services/supabase'
+import { supabase, syncWatchUrlPrefs } from '../services/supabase'
 import { useShowStore } from './showStore'
+import { clearWatchUrlSettings } from '../utils/watchUrl'
+
+const syncPrefs = (userId) => {
+  syncWatchUrlPrefs(userId).catch((err) =>
+    console.error('İzleme linki ayarları senkronlanamadı:', err)
+  )
+}
 
 export const useAuthStore = create((set, get) => ({
   user: null,
@@ -16,6 +23,7 @@ export const useAuthStore = create((set, get) => ({
     })
     if (error) throw error
     set({ user: data.user })
+    syncPrefs(data.user.id)
     return data
   },
 
@@ -37,6 +45,7 @@ export const useAuthStore = create((set, get) => ({
     if (error) throw error
     set({ user: null })
     useShowStore.getState().clear()
+    clearWatchUrlSettings()
   },
 
   initialize: async () => {
@@ -45,14 +54,21 @@ export const useAuthStore = create((set, get) => ({
     set({ initialized: true })
 
     const { data: { session } } = await supabase.auth.getSession()
-    set({ user: session?.user ?? null, loading: false })
+    const sessionUser = session?.user ?? null
+    set({ user: sessionUser, loading: false })
+    if (sessionUser) syncPrefs(sessionUser.id)
 
     supabase.auth.onAuthStateChange((_event, session) => {
+      const prevUser = get().user
       const nextUser = session?.user ?? null
       set({ user: nextUser })
       // Oturum bittiğinde (çıkış veya token süresi dolması) önceki kullanıcının verisi kalmasın
       if (!nextUser) {
         useShowStore.getState().clear()
+        clearWatchUrlSettings()
+      } else if (nextUser.id !== prevUser?.id) {
+        // Farklı bir hesap girdi: onun izleme linki ayarlarını indir
+        syncPrefs(nextUser.id)
       }
     })
   },

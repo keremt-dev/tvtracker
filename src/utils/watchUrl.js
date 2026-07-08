@@ -102,6 +102,15 @@ export function saveWatchUrlSettings(baseUrl, pattern) {
 }
 
 /**
+ * Clear watch URL settings from this device (used on sign-out so the
+ * next account doesn't inherit the previous account's links)
+ */
+export function clearWatchUrlSettings() {
+    localStorage.removeItem(WATCH_URL_STORAGE_KEYS.BASE_URL)
+    localStorage.removeItem(WATCH_URL_STORAGE_KEYS.PATTERN)
+}
+
+/**
  * Get custom watch slug for a specific show
  * @param {number|string} showId - TMDB show ID
  * @returns {string|null} Custom slug or null if not set

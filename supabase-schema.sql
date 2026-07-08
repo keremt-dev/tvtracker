@@ -13,9 +13,16 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) UNIQUE NOT NULL,
     username VARCHAR(50) UNIQUE NOT NULL,
     avatar_url TEXT,
+    watch_base_url TEXT,
+    watch_url_pattern TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Mevcut kurulumlar için migration:
+-- ALTER TABLE public.users
+--   ADD COLUMN IF NOT EXISTS watch_base_url TEXT,
+--   ADD COLUMN IF NOT EXISTS watch_url_pattern TEXT;
 
 -- ================================================
 -- 2. USER_SHOWS TABLE

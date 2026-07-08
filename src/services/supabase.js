@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { WATCH_URL_STORAGE_KEYS, getWatchUrlSettings, saveWatchUrlSettings } from '../utils/watchUrl'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -195,6 +196,56 @@ export const updateProfile = async (userId, updates) => {
 
   if (error) throw error
   return data
+}
+
+// ---- Hesap düzeyi izleme linki ayarları (users tablosunda saklanır) ----
+
+export const getWatchUrlPrefs = async (userId) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('watch_base_url, watch_url_pattern')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (error) throw error
+  return data
+}
+
+export const saveWatchUrlPrefs = async (userId, { baseUrl, pattern }) => {
+  const { error } = await supabase
+    .from('users')
+    .update({
+      watch_base_url: baseUrl || null,
+      watch_url_pattern: pattern || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+
+  if (error) throw error
+}
+
+/**
+ * Hesaptaki izleme linki ayarlarını bu cihazla senkronlar.
+ * Hesapta ayar varsa cihaza (localStorage cache) indirir;
+ * hesapta yok ama cihazda özel ayar varsa bir kerelik hesaba taşır.
+ */
+export const syncWatchUrlPrefs = async (userId) => {
+  const prefs = await getWatchUrlPrefs(userId)
+
+  if (prefs && (prefs.watch_base_url || prefs.watch_url_pattern)) {
+    const current = getWatchUrlSettings()
+    saveWatchUrlSettings(
+      prefs.watch_base_url || current.baseUrl,
+      prefs.watch_url_pattern || current.pattern
+    )
+    return
+  }
+
+  const localBase = localStorage.getItem(WATCH_URL_STORAGE_KEYS.BASE_URL)
+  const localPattern = localStorage.getItem(WATCH_URL_STORAGE_KEYS.PATTERN)
+  if (localBase || localPattern) {
+    await saveWatchUrlPrefs(userId, { baseUrl: localBase, pattern: localPattern })
+  }
 }
 
 /**

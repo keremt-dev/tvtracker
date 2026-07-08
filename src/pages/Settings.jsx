@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
-import { updateProfile } from '../services/supabase'
+import { updateProfile, getWatchUrlPrefs, saveWatchUrlPrefs } from '../services/supabase'
 import { validateUsername } from '../utils/sanitize'
 import { getWatchUrlSettings, saveWatchUrlSettings } from '../utils/watchUrl'
 
@@ -39,6 +39,7 @@ export default function Settings() {
     pattern: '%dizi_adi%/%sezon%-sezon/%bolum%-bolum',
   })
   const [watchUrlSaved, setWatchUrlSaved] = useState(false)
+  const [watchUrlError, setWatchUrlError] = useState('')
 
   // Load initial data
   useEffect(() => {
@@ -50,15 +51,39 @@ export default function Settings() {
       })
     }
 
-    // Load watch URL settings from localStorage
+    // Önce cihaz cache'inden göster, sonra hesaptaki güncel değeri çek
     const savedWatchSettings = getWatchUrlSettings()
     setWatchUrlSettings(savedWatchSettings)
+
+    if (user) {
+      getWatchUrlPrefs(user.id)
+        .then((prefs) => {
+          if (prefs?.watch_base_url || prefs?.watch_url_pattern) {
+            const merged = {
+              baseUrl: prefs.watch_base_url || savedWatchSettings.baseUrl,
+              pattern: prefs.watch_url_pattern || savedWatchSettings.pattern,
+            }
+            setWatchUrlSettings(merged)
+            saveWatchUrlSettings(merged.baseUrl, merged.pattern)
+          }
+        })
+        .catch((error) => console.error('Hesaptaki izleme linki ayarları okunamadı:', error))
+    }
   }, [user])
 
-  const handleSaveWatchUrl = () => {
+  const handleSaveWatchUrl = async () => {
+    setWatchUrlError('')
+    // Cihaz cache'i her durumda güncellensin
     saveWatchUrlSettings(watchUrlSettings.baseUrl, watchUrlSettings.pattern)
-    setWatchUrlSaved(true)
-    setTimeout(() => setWatchUrlSaved(false), 2000)
+
+    try {
+      await saveWatchUrlPrefs(user.id, watchUrlSettings)
+      setWatchUrlSaved(true)
+      setTimeout(() => setWatchUrlSaved(false), 2000)
+    } catch (error) {
+      console.error('İzleme linki ayarları hesaba kaydedilemedi:', error)
+      setWatchUrlError('Hesaba kaydedilemedi — ayar şimdilik yalnızca bu cihazda geçerli.')
+    }
   }
 
   const handleSave = async (e) => {
@@ -252,6 +277,7 @@ export default function Settings() {
 
             <p className="text-slate-400 text-sm mb-6">
               Bölümlere tıkladığınızda açılacak izleme sitesinin URL formatını yapılandırın.
+              Bu ayar hesabınıza kaydedilir ve tüm cihazlarınızda geçerli olur.
             </p>
 
             <div className="space-y-6">
@@ -292,6 +318,12 @@ export default function Settings() {
                   <p className="text-purple-400 font-mono text-sm break-all">
                     {watchUrlSettings.baseUrl}/{watchUrlSettings.pattern.replace(/%dizi_adi%/g, 'ornek-dizi').replace(/%sezon%/g, '1').replace(/%bolum%/g, '5')}
                   </p>
+                </div>
+              )}
+
+              {watchUrlError && (
+                <div className="p-3 rounded-xl text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+                  {watchUrlError}
                 </div>
               )}
 
